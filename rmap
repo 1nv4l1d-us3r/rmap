@@ -9,7 +9,7 @@ noOfThreads=10
 filename=False
 ports=[]
 if(len(sys.argv)<3):
-    print('No arguments provided \n -P  To specify ports ex: -p 80,443,8080\n -t  To specify number of threads (default=10)\n -T  To specify Connection timeout in seconds (default=5)\n -o output filename \nUsage: cat targets.txt | rmap -p 80,443,3306')
+    print('No arguments provided \n -P  To specify ports (only csv allowed) ex: -p 80,443,8080\n -t  To specify number of threads (default=10)\n -T  To specify Connection timeout in seconds (default=5)\n -o output filename \nUsage: cat targets.txt | rmap -p 80,443,3306')
     exit()
 args=sys.argv[1:]
 for a in range(0,len(args),2):
