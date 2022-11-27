@@ -1,0 +1,82 @@
+#!/bin/python
+import random
+import threading
+import socket
+import sys
+import re
+timeout=5
+noOfThreads=10
+filename=False
+ports=[]
+if(len(sys.argv)<3):
+    print('No arguments provided \n -P  To specify ports ex: -p 80,443,8080\n -t  To specify number of threads (default=10)\n -T  To specify Connection timeout in seconds (default=5)\n -o output filename \nUsage: cat targets.txt | rmap -p 80,443,3306')
+    exit()
+args=sys.argv[1:]
+for a in range(0,len(args),2):
+    try:
+        if(args[a]=='-p' or args[a]=='-P'):
+            ports=re.sub(r",$",'',re.sub(r',,',',',args[a+1])).split(',')
+        elif(args[a]=='-t'):
+            noOfThreads=int(args[a+1])
+        elif(args[a]=='-T'):
+            timeout=int(args[a+1])
+        elif(args[a]=='-o' or args[a]=='-O'):
+            filename=args[a+1]
+        else:
+            print('Invalid Argument',args[a])
+            exit()
+    except IndexError:
+        print("Invalid value for Argument",args[a])
+        exit()
+
+
+socket.setdefaulttimeout(timeout)
+targets=[x.strip() for x in sys.stdin]
+hosts={}
+results=[]
+errors={}
+for i in targets:
+    hosts[i]=ports.copy()
+
+def scanrandom():
+    if len(hosts)==0:
+        return
+    temptarget=random.choice(list(hosts.keys()))
+    #print(temptarget)
+    tempport=hosts[temptarget].pop(random.randrange(0,len(hosts[temptarget])))
+    if(len(hosts[temptarget])==0):
+        hosts.pop(temptarget)
+    #print(tempport)
+    s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    try:
+        #print('Trying to connect',temptarget,'on',tempport)
+        s.connect((temptarget,int(tempport)))
+    except (ConnectionRefusedError,socket.timeout):
+        pass
+    except socket.gaierror:
+        errors[temptarget]=True
+    else:
+        print(f'{temptarget}:{tempport}')
+        results.append(f'{temptarget}:{tempport}')
+    finally:
+        s.close()
+
+while hosts:
+    threads=[]
+    for _ in range(noOfThreads):
+        threads.append(threading.Thread(target=scanrandom))
+
+    for i in threads:
+        i.start()
+    for i in threads:
+        i.join()
+
+if(filename):
+    f=open(filename,'w')
+    for lines in results:
+        f.writelines(lines+'\n')
+    f.close()
+with open('.rmap_errors','w') as f:
+    for lines in  errors:
+        f.writelines(lines+'\n')
+
