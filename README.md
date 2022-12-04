@@ -3,11 +3,11 @@ python port scanner that scans random ports and targets from specified lists.
 
 # How to use?
 
-  -P  To specify ports (only csv allowed) ex: -p 80,443,8080.
+  -P  To specify ports (only csv allowed) ex: -p 80,443,8080,200-1000.
 
-  -t  To specify number of threads (default=5)
+  -t  To specify number of threads (default=10)
 
-  -T  To specify Connection timeout in seconds (default=3)
+  -T  To specify Connection timeout in seconds (default=5)
    
   -o  output filename 
 
