@@ -3,7 +3,7 @@ python port scanner that scans random ports and targets from specified lists.
 
 # How to use?
 
-  -P  To specify ports (only csv allowed) ex: -p 80,443,8080,200-1000.
+  -P  To specify ports(csv) or range of ports.  ex: -p 80,443,8080,200-1000.
 
   -t  To specify number of threads (default=10)
 
