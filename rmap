@@ -4,15 +4,62 @@ import threading
 import socket
 import sys
 import re
+import logging
+logging.getLogger("scapy").propagate=False
+from warnings import filterwarnings
+filterwarnings("ignore")
+from scapy.all import *
 timeout=5
+socket.setdefaulttimeout(timeout)
+scanned=0
+total=0
+args=sys.argv[1:]
+
+if(len(sys.argv)<3 or '-p' not in args or '-h' in args):
+    print('Invalid number of arguments provided \n -P  To specify ports(csv) or range of ports.  ex: -p 80,443,8080,200-1000\n -s  Perform SYN scan (Requires Root permission)\n -t  To specify number of threads (default=10)\n -T  To specify Connection timeout in seconds (default=5)\n -v  Verbose mode (Not suitable from piping)\n -o output filename \n Usage:  cat targets.txt | rmap -p 80,443,3306\n         cat targets.txt | rmap -s -p 80,100-2000 -v -t 50')
+    exit()
+
+def connect(ttarget,tport):
+    s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    result=False
+    err=False
+    try:
+        s.connect((ttarget,int(tport)))
+    except (ConnectionRefusedError,socket.timeout):
+        pass
+    except socket.gaierror:
+        err=True
+    except ConnectionResetError:
+        result=True
+    else:
+        result=True
+    finally:
+        s.close()
+    return(result,err)
+
+def syn(ttarget,tport):
+    result=False
+    err=False
+    try:
+        x=sr1(IP(dst=ttarget)/TCP(dport=int(tport),flags='S'),verbose=False,timeout=timeout)
+    except PermissionError:
+        print("SYN scan Not permitted without root permission. run as sudo ")
+        exit()
+    except :
+        err=True
+    if(x):
+        result=True
+    return(result,err)
+
+
 noOfThreads=10
 filename=False
 rawports=[]
-if(len(sys.argv)<3):
-    print('No arguments provided \n -P  To specify ports(csv) or range of ports.  ex: -p 80,443,8080,200-1000\n -t  To specify number of threads (default=10)\n -T  To specify Connection timeout in seconds (default=5)\n -o output filename \nUsage: cat targets.txt | rmap -p 80,443,3306')
-    exit()
-args=sys.argv[1:]
-for a in range(0,len(args),2):
+ports=[]
+scantype=connect
+verbose=False
+
+for a in range(0,len(args),1):
     try:
         if(args[a]=='-p' or args[a]=='-P'):
             rawports=re.sub(r",$",'',re.sub(r',,',',',args[a+1])).split(',')
@@ -22,13 +69,16 @@ for a in range(0,len(args),2):
             timeout=int(args[a+1])
         elif(args[a]=='-o' or args[a]=='-O'):
             filename=args[a+1]
+        elif(args[a]=='-s' or args[a]=='-S'):
+            scantype=syn
+        elif(args[a]=='-v' or args[a]=='-V'):
+            verbose=True
         else:
-            print('Invalid Argument',args[a])
-            exit()
+            continue
     except IndexError:
         print("Invalid value for Argument",args[a])
         exit()
-ports=[]
+
 for x in rawports:
     if '-' in x:
         r=x.split('-')
@@ -40,55 +90,64 @@ for x in rawports:
     else:
         if int(x) not in ports:
             ports.append(int(x))
-
 socket.setdefaulttimeout(timeout)
 targets=[x.strip() for x in sys.stdin]
 hosts={}
 results=[]
 errors={}
+total=len(ports)*len(targets)
 for i in targets:
     hosts[i]=ports.copy()
 
-def scanrandom():
+if(filename):
+    f=open(filename,'w')
+
+def scanrandom(scantype):
     if len(hosts)==0:
         return
+    global scanned
+    scanned=scanned+1
     temptarget=random.choice(list(hosts.keys()))
     #print(temptarget)
     tempport=hosts[temptarget].pop(random.randrange(0,len(hosts[temptarget])))
     if(len(hosts[temptarget])==0):
         hosts.pop(temptarget)
-    #print(tempport)
-    s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    try:
-        #print(f"{temptarget}:{tempport}  ",end='\r')
-        s.connect((temptarget,int(tempport)))
-    except (ConnectionRefusedError,socket.timeout):
-        pass
-    except socket.gaierror:
+    if verbose:
+        print(f'{temptarget}:{tempport}  {int(scanned/total*100)}%'+" "*5,end='\r',)
+    sresult,serr=scantype(temptarget,tempport)
+    if(sresult):
+        printdata=f'{temptarget}:{tempport}'
+        print(printdata,' '*10,flush=True)
+        if(filename):
+            f.writelines(printdata+'\n')
+            f.flush()
+    if(serr):
         if temptarget not in errors:
             errors[temptarget]=[]
-        errors[temptarget].append(tempport)
-    else:
-        print(f'{temptarget}:{tempport}')
-        results.append(f'{temptarget}:{tempport}')
-    finally:
-        s.close()
+        if tempport not in errors[temptarget]:
+            errors[temptarget].append(tempport)
+    
+# testing before launching threads
+
+temp1,temp2=scantype("127.0.0.1",80)
+
+# end of test
 
 while hosts:
     threads=[]
     for _ in range(noOfThreads):
-        threads.append(threading.Thread(target=scanrandom))
+        th=threading.Thread(target=scanrandom,args=(scantype,))
+        th.start()
+        time.sleep(0.01) #to avoid simultaneous DNS requests
+        threads.append(th)
 
-    for i in threads:
-        i.start()
     for i in threads:
         i.join()
 
 if(filename):
-    f=open(filename,'w')
-    for lines in results:
-        f.writelines(lines+'\n')
     f.close()
+
+
 if(errors):
     with open('.rmap_errors','w') as f:
         for targets in  errors:
