@@ -40,6 +40,7 @@ def connect(ttarget,tport):
 def syn(ttarget,tport):
     result=False
     err=False
+    x=False
     try:
         x=sr1(IP(dst=ttarget)/TCP(dport=int(tport),flags='S'),verbose=False,timeout=timeout)
     except PermissionError:
