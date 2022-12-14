@@ -113,7 +113,7 @@ def scanrandom(scantype):
     if(len(hosts[temptarget])==0):
         hosts.pop(temptarget)
     if verbose:
-        print(f'{temptarget}:{tempport}  {int(scanned/total*100)}%'+" "*5,end='\r',)
+        print("\u001b[2K",f'{temptarget}:{tempport}  {int(scanned/total*100)}%'+" "*5,end='\r',)
     sresult,serr=scantype(temptarget,tempport)
     if(sresult):
         printdata=f'{temptarget}:{tempport}'
