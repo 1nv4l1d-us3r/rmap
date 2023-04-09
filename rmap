@@ -100,15 +100,21 @@ total=len(ports)*len(targets)
 for i in targets:
     hosts[i]=ports.copy()
 
+targetpool=[]
+
 if(filename):
     f=open(filename,'w')
 
 def scanrandom(scantype):
     if len(hosts)==0:
         return
+    global targetpool
+    if(len(hosts)>0 and len(targetpool)==0):
+        targetpool=[i for i in hosts.keys()]
     global scanned
     scanned=scanned+1
-    temptarget=random.choice(list(hosts.keys()))
+    temptarget=targetpool.pop(random.randrange(0,len(targetpool)))
+    #random.choice(list(hosts.keys()))
     #print(temptarget)
     tempport=hosts[temptarget].pop(random.randrange(0,len(hosts[temptarget])))
     if(len(hosts[temptarget])==0):
@@ -135,6 +141,7 @@ temp1,temp2=scantype("127.0.0.1",80)
 # end of test
 
 while hosts:
+
     threads=[]
     for _ in range(noOfThreads):
         th=threading.Thread(target=scanrandom,args=(scantype,))
