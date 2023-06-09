@@ -15,7 +15,7 @@ scanned=0
 total=0
 args=sys.argv[1:]
 
-if(len(sys.argv)<3 or '-p' not in args or '-h' in args):
+if('-h' in args):
     print('Invalid number of arguments provided \n -P  To specify ports(csv) or range of ports.  ex: -p 80,443,8080,200-1000\n -s  Perform SYN scan (Requires Root permission)\n -t  To specify number of threads (default=10)\n -T  To specify Connection timeout in seconds (default=5)\n -v  Verbose mode (Not suitable from piping)\n -o output filename \n Usage:  cat targets.txt | rmap -p 80,443,3306\n         cat targets.txt | rmap -s -p 80,100-2000 -v -t 50')
     exit()
 
@@ -59,7 +59,9 @@ rawports=[]
 ports=[]
 scantype=connect
 verbose=False
-
+default_ports='''3368,3366,9091,8443,9443,8080,5900,8000,3000,8081,6000,10000,8181,3306,5000,8888,4000,
+5432,15672,9999,4044,7077,4090,9000,8089,7447,1337,161,7080,8880,8983,5673,7443,7070,7777,10080,8007,
+389,1433,2082,445,1434,9090,389'''.split(',')
 for a in range(0,len(args),1):
     try:
         if(args[a]=='-p' or args[a]=='-P'):
@@ -80,6 +82,8 @@ for a in range(0,len(args),1):
         print("Invalid value for Argument",args[a])
         exit()
 
+if(rawports==[]):
+    rawports=default_ports
 for x in rawports:
     if '-' in x:
         r=x.split('-')
